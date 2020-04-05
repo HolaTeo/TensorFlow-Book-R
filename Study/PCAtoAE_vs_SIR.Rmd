@@ -1,15 +1,16 @@
 ---
-title: "Ch 07: Concept 01"
-output: github_document
+title: "PCA to Autoencoder vs SIR"
+author: "Choi Taeyoung"
+date: \today
+output: pdf_document
 ---
-
-
 
 # Autoencoder
 
 All we'll need is TensorFlow and NumPy:
 ```{r}
 library(tensorflow)
+library(numpy)
 ```
 
 Instead of feeding all the training data to the training op, we will feed data in small batches:
@@ -26,7 +27,7 @@ get_batch <- function(X, size){
 Define the autoencoder class:
 
 ```{r}
-Autoencoder <- setRefClass("Autoencoder",
+AE_PCA <- setRefClass("Autoencoder",
   fields = c('input_dim', 'hidden_dim', 'epoch', 'batch_size', 
              'learning_rate', 'x', 'encoded', 'decoded', 'loss', 'all_loss',
              'train_op','saver', 'autoencoder_graph'),
@@ -49,20 +50,7 @@ Autoencoder <- setRefClass("Autoencoder",
               encode_biases <- tf$Variable(tf$zeros(list(.self$hidden_dim)), name='biases')
               .self$encoded  <- tf$nn$sigmoid(tf$matmul(x, encode_weights) + encode_biases)
         })
-        
-        with(tf$name_scope('decode'),{
-              decode_weights <- tf$Variable(tf$random_normal(list(.self$hidden_dim, .self$input_dim),
-                                                      dtype=tf$float32), name='weights')
-              decode_biases <- tf$Variable(tf$zeros(list(.self$input_dim)), name='biases')
-              .self$decoded <- tf$matmul(encoded, decode_weights) + decode_biases
-        })
-  
-        # Define cost function and training op
-        .self$loss <- tf$sqrt(tf$reduce_mean(tf$square(tf$subtract(.self$x, .self$decoded))))
-  
-        .self$all_loss <- tf$sqrt(tf$reduce_mean(tf$square(tf$subtract(.self$x, .self$decoded)), 1L))
-        .self$train_op <- tf$train$AdamOptimizer(.self$learning_rate)$minimize(.self$loss)
-          
+
         # Define a saver op
         .self$saver = tf$train$Saver()
       })
@@ -77,25 +65,24 @@ Autoencoder <- setRefClass("Autoencoder",
           }
           if(i %% 50 == 0){
             print(sprintf('epoch %d: loss = %f', i, l_[[1]]))
-            .self$saver$save(sess, './model.ckpt')
+            .self$saver$save(sess, './pca.ckpt')
           }
         }
-        .self$saver$save(sess, './model.ckpt')
+        .self$saver$save(sess, './pca.ckpt')
         })
       },
     test=function(data){
       with(tf$Session(graph=.self$autoencoder_graph) %as% sess, {
-        .self$saver$restore(sess, './model.ckpt')
-        hidden_reconstructed <- sess$run(list(.self$encoded, .self$decoded), feed_dict=dict(x=data))
+        .self$saver$restore(sess, './pca.ckpt')
+        hidden_reconstructed <- sess$run(list(.self$encoded), feed_dict=dict(x=data))
         })
       print(paste('input', data))
       print(paste('compressed', hidden_reconstructed[[1]]))
-      print(paste('reconstructed', hidden_reconstructed[[2]]))
-      return(hidden_reconstructed[[2]])
+      return(hidden_reconstructed[[1]])
       },
     get_params=function(){
       with(tf$Session(graph=.self$autoencoder_graph) %as% sess, {
-        .self$saver$restore(sess, './model.ckpt')
+        .self$saver$restore(sess, './pca.ckpt')
         weight_biases <- sess$run(list(.self$weight1, .self$biases1))
       })
       return(list(weight=weight_biases[[1]], biases=weight_biases[[2]]))
@@ -103,34 +90,100 @@ Autoencoder <- setRefClass("Autoencoder",
     classify=function(data, labels){
       with(tf$Session(graph=.self$autoencoder_graph) %as% sess, {
         sess$run(tf$global_variables_initializer())
-        .self$saver$restore(sess, './model.ckpt')
-        hidden_reconstructed <- sess$run(list(.self$encoded, .self$decoded), feed_dict=dict(x=data))
-        reconstructed <- hidden_reconstructed[[2]]
+        .self$saver$restore(sess, './pca.ckpt')
+        hidden_reconstructed <- sess$run(list(.self$encoded), feed_dict=dict(x=data))
+        reconstructed <- hidden_reconstructed[[1]]
         print(dim(reconstructed))
-        # loss <- sess$run(.self$all_loss, feed_dict=dict(x: data))
-        print(paste('data', dim(data)))
-        print(paste('reconstructed', dim(hidden_reconstructed[[2]])))
-        loss_test <- apply((data - hidden_reconstructed[[2]])^2, 1, function(x){sqrt(mean(x))})
-        print(paste('loss length', length(loss_test)))
-        horse_indices <- which(labels == 7)
-        not_horse_indices <- which(labels != 7)
-        horse_loss <- mean(loss_test[horse_indices])
-        not_horse_loss <- mean(loss_test[not_horse_indices])
-        print(paste('horse', horse_loss))
-        print(paste('not horse', not_horse_loss))
       })
       return(hidden_reconstructed[[1]])
-      },
-    decode=function(encoding){
-      with(tf$Session(graph=.self$autoencoder_graph) %as% sess, {
-            sess$run(tf$global_variables_initializer())
-            .self$saver$restore(sess, './model.ckpt')
-            reconstructed <- sess$run(.self$decoded, feed_dict=dict(encoded= encoding))
-      })
-      img <- matrix(reconstructed,byrow = T, nrow = 32)
-      return(img)
       }
     ))
+
+# Analysis
+pca_indices <- which(labels == 7)
+pca_x = x[pca_indices,]
+print(dim(pca_x)) 
+
+input_dim <- 10
+hidden_dim <- 2
+
+
+aep <- AE_PCA$new(input_dim, hidden_dim)
+aep$train()
 ```
 
+```{r}
+# import tensorflow as tf
+set.seed(4)
+m <-  200
+w1 <- 0.1
+w2 <- 0.3
+w12 <- c(w1, w2)
+noise <-  0.1
+#get angle
+angles <- NULL
+for(i in 1:m){
+  a1 <-  runif(i) * 3 * pi / 2 - 0.5
+  angles <- cbind(a1) %>% as.vector()
+}
+
+# get sample data
+data <- c(NULL, NULL, NULL)
+for (a in 1 : m){
+  m1 <- cos(angles[a]) + sin(angles[a])/2 + noise * rnorm(a) / 2
+  m2 <- sin(angles[a]) * 0.7 + noise * rnorm(a) / 2
+  m3 <- m1 * w1 + m2 * w2 + noise * rnorm(a)
+  data <- cbind(m1,m2,m3)
+}
+
+X_train <- data[1:100,]
+X_test <- data[101:200,]
+
+
+################ # layer params # ################ 
+n_inputs = 3 
+n_hidden = 2 # coding units 
+n_outputs = n_inputs 
+
+# autoencoder 
+X <-  tf$placeholder(tf$float32, shape=list(NULL, n_inputs))
+hidden <-  tf$layers$dense(X, n_hidden) 
+outputs <-  tf$layers$dense(hidden, n_outputs) 
+
+################ # Train params # ################
+learning_rate <-  0.01 
+n_iterations <-  1000 
+pca <-  hidden 
+
+# loss
+reconstruction_loss <-  tf$reduce_mean(tf$square(outputs - X)) # MSE
+# optimizer 
+train_op <- tf$train$AdamOptimizer(learning_rate)$minimize(reconstruction_loss)
+
+  with(tf$Session()) %as% sess ,{
+    sess$run(tf$global_variables_initializer())
+    for(i in 1:n_iterations){
+      train_op$run(feed_dict={X=X_train})
+      pca_val <-  pca.eval(feed_dict={X=X_test})
+      }
+    }
+  }
+
+
+with tf.Session() as sess: 
+  tf.global_variables_initializer().run() 
+  for iteration in range(n_iterations):
+    train_op.run(feed_dict={X: X_train}) 
+  pca_val = pca.eval(feed_dict={X: X_test})
+
+test=function(data){
+      with(tf$Session(graph=.self$autoencoder_graph) %as% sess, {
+        .self$saver$restore(sess, './pca.ckpt')
+        hidden_reconstructed <- sess$run(list(.self$encoded), feed_dict=dict(x=data))
+        })
+      print(paste('input', data))
+      print(paste('compressed', hidden_reconstructed[[1]]))
+      return(hidden_reconstructed[[1]])
+      }
+```
 

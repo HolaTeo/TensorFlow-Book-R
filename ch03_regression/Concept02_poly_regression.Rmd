@@ -68,6 +68,9 @@ model <- function(X, w){
 Set up the parameter vector to all zero
 ```{r}
 w <- tf$Variable(tf$zeros(num_coeffs,dtype = 'float'), name="parameters")
+
+# options(tensorflow.extract.one_based = FALSE)
+
 y_model <- model(X, w)
 ```
 
@@ -107,11 +110,11 @@ sess$close()
 
 Plot the result
 ```{r}
-plot(trX, trY)
+
 trY2 <- 0
 for(i in 1:num_coeffs){
     trY2 <- trY2 + w_val[i] * trX^(i-1)
 }
-lines(trX, trY2, col='red')
+plot(trX, trY, lines(trX, trY2, col='red'))
 ```
 

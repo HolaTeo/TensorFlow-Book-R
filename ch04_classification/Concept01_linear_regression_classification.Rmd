@@ -10,6 +10,8 @@ Import the usual libraries:
 ```{r}
 library(tensorflow)
 library(reticulate)
+options(tensorflow.extract.one_based = FALSE)
+
 np <- import('numpy')
 py <- import_builtins()
 ```
@@ -104,8 +106,9 @@ accuracy `r accu`
 
 Plot the learned function
 ```{r}
-plot(x=xs, y=labels)
 all_xs <- seq.int(0, 10, length.out = 100)
-lines(x=all_xs, y=all_xs*w_val[[2]] + w_val[[1]], col="red")
+plot(x=xs, y=labels,lines(x=all_xs, y=all_xs*w_val[[2]] + w_val[[1]], col="red"))
+
+
 ```
 

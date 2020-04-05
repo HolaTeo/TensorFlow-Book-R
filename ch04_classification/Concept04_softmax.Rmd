@@ -18,16 +18,19 @@ num_labels <- 3
 batch_size <- 100
 
 
-x1_label0 <- rnorm(100, 1, 1)
-x2_label0 <- rnorm(100, 1, 1)
-x1_label1 <- rnorm(100, 5, 1)
-x2_label1 <- rnorm(100, 4, 1)
-x1_label2 <- rnorm(100, 8, 1)
-x2_label2 <- rnorm(100, 0, 1)
+x1_label0 <- rnorm(100, 1, 1) %>% as.vector()
+x2_label0 <- rnorm(100, 1, 1) %>% as.vector() 
+x1_label1 <- rnorm(100, 5, 1) %>% as.vector()
+x2_label1 <- rnorm(100, 4, 1)%>% as.vector()
+x1_label2 <- rnorm(100, 8, 1)%>% as.vector()
+x2_label2 <- rnorm(100, 0, 1)%>% as.vector()
 
-plot(x1_label0, x2_label0, col='red', pch='o', xlim=c(-2, 10), ylim=c(-2, 8))
-points(x1_label1, x2_label1, col='green', pch='x')
+
+plot(x1_label0, x2_label0, col='red', pch='o', xlim=c(-2,10), ylim=c(-3,7)) +
+points(x1_label1, x2_label1, col='green', pch='x') +
 points(x1_label2, x2_label2, col='blue', pch='_')
+
+
 ```
 
 Define the labels and shuffle the data:

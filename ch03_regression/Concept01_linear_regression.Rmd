@@ -91,9 +91,8 @@ sess$close()
 
 Visualize the best fit curve
 ```{r}
-plot(x_train, y_train)
+plot(x_train, y_train, lines(x_train, y_learned, col='red'))
 y_learned <- x_train*w_val
-lines(x_train, y_learned, col='red')
 ```
 
 
